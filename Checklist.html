@@ -268,34 +268,68 @@ async function sendToAppsScript(payload) {
   return result;
 }
 
-/* Coba kirim semua antrean. showAlert=true kalau dipicu manual dari tombol. */
+let isSyncing = false; // Flag pengunci untuk mencegah proses ganda
+
+/* Coba kirim semua antrean */
 async function trySyncPending(showAlert) {
+  // 1. Jika proses sinkronisasi sedang berjalan, tolak aksi berikutnya
+  if (isSyncing) {
+    if (showAlert) alert("Sinkronisasi sedang berlangsung, mohon tunggu sebentar...");
+    return;
+  }
+
+  const syncBtn = document.querySelector(".pending-sync-btn");
   const pending = await getAllPending();
   await renderPendingQueue(pending);
 
   if (pending.length === 0) return;
+
   if (!navigator.onLine) {
     if (showAlert) alert("Masih belum ada internet, coba lagi nanti.");
     return;
   }
 
-  let berhasil = 0, gagal = 0;
-
-  for (const item of pending) {
-    try {
-      await sendToAppsScript(item.payload);
-      await deletePending(item.id);
-      berhasil++;
-    } catch (err) {
-      gagal++;
-    }
+  // 2. Kunci proses & ubah status tombol agar tidak bisa diklik lagi
+  isSyncing = true;
+  if (syncBtn) {
+    syncBtn.disabled = true;
+    syncBtn.style.opacity = "0.6";
+    syncBtn.style.cursor = "not-allowed";
+    syncBtn.textContent = "⏳ Sedang Mengirim Antrean...";
   }
 
-  const sisa = await getAllPending();
-  await renderPendingQueue(sisa);
+  let berhasil = 0, gagal = 0;
 
-  if (showAlert) {
-    alert(`Sinkronisasi selesai. Berhasil: ${berhasil}, Gagal: ${gagal}.`);
+  try {
+    // 3. Ambil ulang data antrean terbaru dari IndexedDB
+    const itemsToSend = await getAllPending();
+
+    for (const item of itemsToSend) {
+      try {
+        await sendToAppsScript(item.payload);
+        // Hapus dari IndexedDB segera setelah satu item berhasil dikirim
+        await deletePending(item.id);
+        berhasil++;
+      } catch (err) {
+        gagal++;
+      }
+    }
+  } finally {
+    // 4. Buka kunci dan kembalikan status tombol seperti semula
+    isSyncing = false;
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      syncBtn.style.opacity = "1";
+      syncBtn.style.cursor = "pointer";
+      syncBtn.textContent = "Coba Kirim Sekarang";
+    }
+
+    const sisa = await getAllPending();
+    await renderPendingQueue(sisa);
+
+    if (showAlert) {
+      alert(`Sinkronisasi selesai. Berhasil: ${berhasil}, Gagal: ${gagal}.`);
+    }
   }
 }
 
