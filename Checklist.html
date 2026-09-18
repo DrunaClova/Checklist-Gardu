@@ -187,7 +187,7 @@ textarea { resize: vertical; min-height: 90px; }
 /* =====================================================
    KONFIGURASI — isi dengan URL Web App Apps Script kamu
 ===================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_mfdl2_0s0Al5DVq2Ydt_PfH93vI15U6xRam33OX6apzBAhSr1nf2OxP6x1BclQkf7A/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcg_yI0AMm6Bbb4G-djUBps3ac92Yhh1YT9eo7lWHviWzHya2uZLU59JZ95NilrC6k6w/exec";
 
 let templateItems = [];
 let latitude = null, longitude = null, gpsAccuracy = null;
@@ -245,26 +245,21 @@ async function deletePending(id) {
 async function sendToAppsScript(payload) {
   const res = await fetch(APPS_SCRIPT_URL, {
     method: "POST",
-    // Jangan gunakan header application/json karena akan memicu CORS preflight (OPTIONS)
-    // Gunakan text/plain murni atau x-www-form-urlencoded
-    headers: { 
-      "Content-Type": "text/plain;charset=utf-8" 
-    },
+    // Biarkan body berupa teks JSON murni tanpa header khusus
     body: JSON.stringify(payload),
-    redirect: "follow" // WAJIB: ikuti redirect Google Apps Script
+    redirect: "follow"
   });
 
-  // Ambil teks terlebih dahulu untuk memastikan tidak error saat parsing JSON
   const text = await res.text();
   let result;
   try {
     result = JSON.parse(text);
   } catch (e) {
-    throw new Error("Respon server bukan JSON valid: " + text.substring(0, 100));
+    throw new Error("Respon server bukan JSON: " + text.substring(0, 120));
   }
 
   if (!result.success) {
-    throw new Error(result.error || "Gagal tidak diketahui dari server.");
+    throw new Error(result.error || "Gagal dari server Apps Script.");
   }
 
   return result;
