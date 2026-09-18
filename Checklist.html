@@ -84,7 +84,6 @@ textarea { resize: vertical; min-height: 90px; }
 .pending-item { font-size: 12px; color: #78350f; margin-bottom: 6px; }
 .pending-sync-btn { width: 100%; border: none; background: #92400e; color: white; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 8px; }
 
-/* ===== MODAL KONFIRMASI ===== */
 .modal-overlay {
   display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
   align-items: center; justify-content: center; z-index: 200; padding: 16px;
@@ -184,23 +183,13 @@ textarea { resize: vertical; min-height: 90px; }
 </div>
 
 <script>
-/* =====================================================
-   KONFIGURASI — isi dengan URL Web App Apps Script kamu
-===================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbylIHMQSGlNCXK8zKlpdRVI2yf5gEr_I1we0Djg-oXZOTOYd6Atxc2ODi1fMOrGxXLxtA/exec";
 
-// Harus SAMA PERSIS dengan API_TOKEN di Code.gs. Ini tidak membuat endpoint
-// 100% "aman" (token tetap ada di kode client yang bisa dibaca orang), tapi
-// menghalangi bot/scraper acak yang sekadar menemukan URL Apps Script ini
-// dari mengirim data sampah tanpa sengaja tahu token-nya.
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbylIHMQSGlNCXK8zKlpdRVI2yf5gEr_I1we0Djg-oXZOTOYd6Atxc2ODi1fMOrGxXLxtA/exec";
 const API_TOKEN = "UgP0irtQFWGQuAhmkXpYOqUK1l2yhU9rmd9P8VbG1LQy0G8d8GsEPmt4I3X5peWR";
 
 let templateItems = [];
 let latitude = null, longitude = null, gpsAccuracy = null;
 
-/* Escape karakter HTML sebelum dimasukkan ke innerHTML, supaya data
-   (nama item dari sheet, isian form, dll) tidak bisa dianggap sebagai
-   tag/script oleh browser. */
 function escapeHtml(value) {
   return String(value === null || value === undefined ? "" : value)
     .replace(/&/g, "&amp;")
@@ -210,12 +199,6 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-/* =====================================================
-   ANTREAN OFFLINE (IndexedDB)
-   Kalau submit gagal karena tidak ada internet, data
-   (termasuk foto base64) disimpan di sini dulu, lalu
-   otomatis dicoba kirim lagi saat koneksi kembali.
-===================================================== */
 const DB_NAME = "checklistGarduDB";
 const STORE_NAME = "pendingSubmissions";
 
@@ -261,8 +244,6 @@ async function deletePending(id) {
 }
 
 async function sendToAppsScript(payload) {
-  // Gunakan URLSearchParams agar diperlakukan sebagai standard form-urlencoded
-  // Ini menghindari pemblokiran CORS oleh browser
   const formBody = new URLSearchParams();
   formBody.append("postData", JSON.stringify(payload));
   formBody.append("token", API_TOKEN);
@@ -287,11 +268,9 @@ async function sendToAppsScript(payload) {
   return result;
 }
 
-let isSyncing = false; // Flag pengunci untuk mencegah proses ganda
+let isSyncing = false;
 
-/* Coba kirim semua antrean */
 async function trySyncPending(showAlert) {
-  // 1. Jika proses sinkronisasi sedang berjalan, tolak aksi berikutnya
   if (isSyncing) {
     if (showAlert) alert("Sinkronisasi sedang berlangsung, mohon tunggu sebentar...");
     return;
@@ -308,7 +287,6 @@ async function trySyncPending(showAlert) {
     return;
   }
 
-  // 2. Kunci proses & ubah status tombol agar tidak bisa diklik lagi
   isSyncing = true;
   if (syncBtn) {
     syncBtn.disabled = true;
@@ -320,13 +298,12 @@ async function trySyncPending(showAlert) {
   let berhasil = 0, gagal = 0;
 
   try {
-    // 3. Ambil ulang data antrean terbaru dari IndexedDB
+    
     const itemsToSend = await getAllPending();
 
     for (const item of itemsToSend) {
       try {
         await sendToAppsScript(item.payload);
-        // Hapus dari IndexedDB segera setelah satu item berhasil dikirim
         await deletePending(item.id);
         berhasil++;
       } catch (err) {
@@ -334,7 +311,6 @@ async function trySyncPending(showAlert) {
       }
     }
   } finally {
-    // 4. Buka kunci dan kembalikan status tombol seperti semula
     isSyncing = false;
     if (syncBtn) {
       syncBtn.disabled = false;
@@ -369,19 +345,14 @@ async function renderPendingQueue(pending) {
   }).join("");
 }
 
-/* Sinkron otomatis saat koneksi kembali online */
 window.addEventListener("online", () => trySyncPending(false));
 
-/* ===== WAKTU ===== */
 function updateDatetime() {
   document.getElementById("datetime").textContent = new Date().toLocaleString("id-ID");
 }
 updateDatetime();
 setInterval(updateDatetime, 1000 * 30);
 
-/* =====================================================
-   MUAT TEMPLATE CHECKLIST DARI APPS SCRIPT
-===================================================== */
 async function loadTemplate() {
   const container = document.getElementById("checklistContainer");
   const CACHE_KEY = "checklist_template_cache";
@@ -399,7 +370,6 @@ async function loadTemplate() {
     renderChecklist();
 
   } catch (err) {
-    // Gagal ambil dari internet (misal sedang offline) -> pakai cache terakhir
     const cached = localStorage.getItem(CACHE_KEY);
 
     if (cached) {
@@ -482,11 +452,6 @@ function renderChecklist() {
   });
 }
 
-/* =====================================================
-   EVIDENCE FOTO PER ITEM
-   Setiap foto diberi label "nomorItem.nomorFoto", misal
-   item ke-2 (B) yang rusak -> 2.1, 2.2, dst.
-===================================================== */
 let itemEvidenceCounts = [];
 
 function addItemEvidence(itemIndex) {
@@ -550,7 +515,6 @@ function deleteItemEvidence(button, itemIndex) {
   renumberItemEvidence(itemIndex);
 }
 
-/* Beri ulang label 2.1, 2.2, ... setelah salah satu foto item ini dihapus */
 function renumberItemEvidence(itemIndex) {
   const list = document.getElementById("itemEvidenceList" + itemIndex);
   const items = list.querySelectorAll(".evidence-item");
@@ -572,7 +536,6 @@ function updateAddEvidenceButtonLabel(itemIndex) {
   }
 }
 
-/* Ubah File jadi base64 murni (tanpa prefix data:...) */
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -582,9 +545,6 @@ function fileToBase64(file) {
   });
 }
 
-/* =====================================================
-   GPS
-===================================================== */
 function getGPS() {
   const result = document.getElementById("gpsResult");
 
@@ -612,9 +572,6 @@ function getGPS() {
   );
 }
 
-/* =====================================================
-   VALIDASI + KUMPULKAN DATA
-===================================================== */
 function collectFormData() {
   const nomorGardu = document.getElementById("nomorGardu").value.trim();
   const alamat = document.getElementById("alamat").value.trim();
@@ -633,7 +590,6 @@ function collectFormData() {
   for (let i = 0; i < checkItems.length; i++) {
     const el = checkItems[i];
     
-    // Cek apakah ada elemen ukuran-input (hanya ada jika Kolom C bernilai YA)
     const ukuranEl = el.querySelector(".ukuran-input");
     const ukuran = (ukuranEl && ukuranEl.value.trim() !== "") ? ukuranEl.value.trim() : "-";
     
@@ -647,8 +603,8 @@ function collectFormData() {
 
     items.push({
       namaItem: templateItems[i].namaItem,
-      satuan: templateItems[i].satuan, // Tetap konstan dari master template
-      ukuran: ukuran,                 // Berisi isian atau "-" jika TIDAK
+      satuan: templateItems[i].satuan, 
+      ukuran: ukuran,                 
       jumlah: jumlah || 0,
       kondisi: kondisi.value
     });
@@ -657,9 +613,6 @@ function collectFormData() {
   return { nomorGardu, alamat, petugas1, petugas2, items };
 }
 
-/* =====================================================
-   MODAL KONFIRMASI
-===================================================== */
 function openConfirmModal() {
   const data = collectFormData();
   if (!data) return;
@@ -682,9 +635,6 @@ function closeConfirmModal() {
   document.getElementById("confirmModal").style.display = "none";
 }
 
-/* =====================================================
-   SUBMIT (dipanggil setelah konfirmasi)
-===================================================== */
 async function submitInspection() {
   const data = collectFormData();
   if (!data) { closeConfirmModal(); return; }
@@ -721,7 +671,6 @@ async function submitInspection() {
       evidence
     };
 
-    // Kalau memang sedang offline, langsung antre tanpa mencoba fetch dulu
     if (!navigator.onLine) {
       await queueSubmission(payload);
       await renderPendingQueue();
@@ -736,7 +685,6 @@ async function submitInspection() {
     try {
       result = await sendToAppsScript(payload);
     } catch (networkErr) {
-      // Gagal kirim (misal koneksi putus di tengah jalan) -> antre juga
       await queueSubmission(payload);
       await renderPendingQueue();
       alert("Gagal terhubung ke server. Data disimpan di HP dan akan otomatis dicoba kirim lagi nanti.");
@@ -766,30 +714,20 @@ async function submitInspection() {
   }
 }
 
-/* Kosongkan form supaya siap dipakai untuk inspeksi berikutnya
-   setelah data berhasil diantrekan/dikirim. */
 function resetForm() {
   document.getElementById("nomorGardu").value = "";
   document.getElementById("alamat").value = "";
   document.getElementById("petugas1").value = "";
   document.getElementById("petugas2").value = "";
-  // Evidence per item ikut direset saat checklist dirender ulang.
   itemEvidenceCounts = [];
   latitude = longitude = gpsAccuracy = null;
   document.getElementById("gpsResult").textContent = "Lokasi belum diambil.";
   renderChecklist();
 }
-
-/* Muat template saat halaman dibuka */
 loadTemplate();
-
-/* Tampilkan antrean yang tersimpan, dan coba sinkron kalau kebetulan online */
 renderPendingQueue();
 trySyncPending(false);
 
-/* Daftarkan service worker supaya bisa jadi PWA (installable + offline shell).
-   Perlu diakses lewat https (GitHub Pages otomatis https) atau localhost —
-   tidak akan aktif kalau dibuka langsung dengan file://. */
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("service-worker.js").catch((err) => {
