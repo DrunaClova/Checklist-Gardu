@@ -187,7 +187,7 @@ textarea { resize: vertical; min-height: 90px; }
 /* =====================================================
    KONFIGURASI — isi dengan URL Web App Apps Script kamu
 ===================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcg_yI0AMm6Bbb4G-djUBps3ac92Yhh1YT9eo7lWHviWzHya2uZLU59JZ95NilrC6k6w/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmAOgyrvLQrf1zJr7Q8Ahh22ORLetVeDZQ9UUnWYPkA1SvYYkdNLqBJZFv1R50S67Asg/exec";
 
 let templateItems = [];
 let latitude = null, longitude = null, gpsAccuracy = null;
@@ -243,11 +243,14 @@ async function deletePending(id) {
 }
 
 async function sendToAppsScript(payload) {
+  // Gunakan URLSearchParams agar diperlakukan sebagai standard form-urlencoded
+  // Ini menghindari pemblokiran CORS oleh browser
+  const formBody = new URLSearchParams();
+  formBody.append("postData", JSON.stringify(payload));
+
   const res = await fetch(APPS_SCRIPT_URL, {
     method: "POST",
-    // Biarkan body berupa teks JSON murni tanpa header khusus
-    body: JSON.stringify(payload),
-    redirect: "follow"
+    body: formBody
   });
 
   const text = await res.text();
@@ -255,11 +258,11 @@ async function sendToAppsScript(payload) {
   try {
     result = JSON.parse(text);
   } catch (e) {
-    throw new Error("Respon server bukan JSON: " + text.substring(0, 120));
+    throw new Error("Respon bukan format JSON: " + text.substring(0, 100));
   }
 
   if (!result.success) {
-    throw new Error(result.error || "Gagal dari server Apps Script.");
+    throw new Error(result.error || "Gagal dari server.");
   }
 
   return result;
