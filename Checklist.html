@@ -187,10 +187,28 @@ textarea { resize: vertical; min-height: 90px; }
 /* =====================================================
    KONFIGURASI — isi dengan URL Web App Apps Script kamu
 ===================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbymYuOmFMLObXnVh2a0oPS513GDOK6WXQhwvdMJz1C30YMa9qIArvNpgWkUj3VTVGzfMw/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbylIHMQSGlNCXK8zKlpdRVI2yf5gEr_I1we0Djg-oXZOTOYd6Atxc2ODi1fMOrGxXLxtA/exec";
+
+// Harus SAMA PERSIS dengan API_TOKEN di Code.gs. Ini tidak membuat endpoint
+// 100% "aman" (token tetap ada di kode client yang bisa dibaca orang), tapi
+// menghalangi bot/scraper acak yang sekadar menemukan URL Apps Script ini
+// dari mengirim data sampah tanpa sengaja tahu token-nya.
+const API_TOKEN = "UgP0irtQFWGQuAhmkXpYOqUK1l2yhU9rmd9P8VbG1LQy0G8d8GsEPmt4I3X5peWR";
 
 let templateItems = [];
 let latitude = null, longitude = null, gpsAccuracy = null;
+
+/* Escape karakter HTML sebelum dimasukkan ke innerHTML, supaya data
+   (nama item dari sheet, isian form, dll) tidak bisa dianggap sebagai
+   tag/script oleh browser. */
+function escapeHtml(value) {
+  return String(value === null || value === undefined ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 /* =====================================================
    ANTREAN OFFLINE (IndexedDB)
@@ -247,6 +265,7 @@ async function sendToAppsScript(payload) {
   // Ini menghindari pemblokiran CORS oleh browser
   const formBody = new URLSearchParams();
   formBody.append("postData", JSON.stringify(payload));
+  formBody.append("token", API_TOKEN);
 
   const res = await fetch(APPS_SCRIPT_URL, {
     method: "POST",
@@ -346,7 +365,7 @@ async function renderPendingQueue(pending) {
   card.style.display = "block";
   list.innerHTML = pending.map(p => {
     const d = p.payload;
-    return `<div class="pending-item">• ${d.nomorGardu} — ${d.petugas1} & ${d.petugas2} (disimpan ${new Date(p.createdAt).toLocaleString("id-ID")})</div>`;
+    return `<div class="pending-item">• ${escapeHtml(d.nomorGardu)} — ${escapeHtml(d.petugas1)} & ${escapeHtml(d.petugas2)} (disimpan ${new Date(p.createdAt).toLocaleString("id-ID")})</div>`;
   }).join("");
 }
 
@@ -368,7 +387,7 @@ async function loadTemplate() {
   const CACHE_KEY = "checklist_template_cache";
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL + "?action=template");
+    const res = await fetch(APPS_SCRIPT_URL + "?action=template&token=" + encodeURIComponent(API_TOKEN));
     const data = await res.json();
 
     if (data.error) {
@@ -408,8 +427,8 @@ function renderChecklist() {
 
   container.innerHTML = templateItems.map((item, i) => `
     <div class="check-item" data-index="${i}">
-      <div class="check-name">${i + 1}. ${item.namaItem}</div>
-      <div class="check-satuan">Satuan: <strong>${item.satuan || "-"}</strong></div>
+      <div class="check-name">${i + 1}. ${escapeHtml(item.namaItem)}</div>
+      <div class="check-satuan">Satuan: <strong>${escapeHtml(item.satuan || "-")}</strong></div>
 
       <div class="check-row">
         ${item.perluUkuran ? `
@@ -420,7 +439,7 @@ function renderChecklist() {
         ` : ''}
 
         <div class="form-group" style="flex: 1;">
-          <label class="form-label">Jumlah (${item.satuan || 'Unit'})</label>
+          <label class="form-label">Jumlah (${escapeHtml(item.satuan || 'Unit')})</label>
           <input type="number" class="jumlah-input" min="0" step="1" placeholder="0">
         </div>
       </div>
@@ -648,9 +667,9 @@ function openConfirmModal() {
   const evidenceCountNow = document.querySelectorAll(".evidence-item").length;
 
   document.getElementById("confirmSummary").innerHTML = `
-    <strong>Nomor Gardu:</strong> ${data.nomorGardu}<br>
-    <strong>Alamat:</strong> ${data.alamat}<br>
-    <strong>Petugas:</strong> ${data.petugas1} & ${data.petugas2}<br>
+    <strong>Nomor Gardu:</strong> ${escapeHtml(data.nomorGardu)}<br>
+    <strong>Alamat:</strong> ${escapeHtml(data.alamat)}<br>
+    <strong>Petugas:</strong> ${escapeHtml(data.petugas1)} & ${escapeHtml(data.petugas2)}<br>
     <strong>Jumlah item checklist:</strong> ${data.items.length}<br>
     <strong>Jumlah foto evidence:</strong> ${evidenceCountNow}<br><br>
     Pastikan semua data sudah benar sebelum dikirim.
