@@ -371,15 +371,15 @@ function renderChecklist() {
 
       <div class="options">
         <label class="option">
-          <input type="radio" name="kondisi${i}" value="BAIK" onchange="toggleItemEvidence(${i}, this.value)">
+          <input type="radio" class="kondisi-radio" name="kondisi${i}" value="BAIK">
           <span>BAIK</span>
         </label>
         <label class="option">
-          <input type="radio" name="kondisi${i}" value="RUSAK" onchange="toggleItemEvidence(${i}, this.value)">
+          <input type="radio" class="kondisi-radio" name="kondisi${i}" value="RUSAK">
           <span>RUSAK</span>
         </label>
         <label class="option">
-          <input type="radio" name="kondisi${i}" value="N/A" onchange="toggleItemEvidence(${i}, this.value)">
+          <input type="radio" class="kondisi-radio" name="kondisi${i}" value="N/A">
           <span>N/A</span>
         </label>
       </div>
@@ -387,16 +387,32 @@ function renderChecklist() {
       <div class="item-evidence" id="itemEvidence${i}">
         <div class="item-evidence-label">⚠️ Kondisi rusak — lampirkan foto evidence</div>
         <div id="itemEvidenceList${i}"></div>
-        <button type="button" class="add-evidence" id="addEvBtn${i}" onclick="addItemEvidence(${i})">+ Tambah Foto Evidence ${i + 1}.1</button>
+        <button type="button" class="add-evidence" id="addEvBtn${i}" onclick="addItemEvidence(${i})">
+          + Tambah Foto Evidence ${i + 1}.1
+        </button>
       </div>
     </div>
   `).join("");
-}
 
-/* Tampilkan/sembunyikan kotak evidence sesuai kondisi yang dipilih */
-function toggleItemEvidence(itemIndex, value) {
-  const box = document.getElementById("itemEvidence" + itemIndex);
-  box.style.display = (value === "Rusak") ? "block" : "none";
+  // Pasang event listener setelah elemen checklist selesai dibuat.
+  container.querySelectorAll(".kondisi-radio").forEach(radio => {
+    radio.addEventListener("change", function () {
+      const item = this.closest(".check-item");
+      if (!item) return;
+
+      const evidenceBox = item.querySelector(".item-evidence");
+      if (!evidenceBox) return;
+
+      evidenceBox.style.display = this.value === "RUSAK" ? "block" : "none";
+
+      // Jika kondisi bukan RUSAK, hapus evidence yang sebelumnya dibuat.
+      // Data baru hanya akan terkumpul dari evidence yang masih terlihat/tersimpan.
+      if (this.value !== "RUSAK") {
+        const list = item.querySelector(".item-evidence-list");
+        // Tidak menghapus otomatis agar pengguna tidak kehilangan foto/keterangan.
+      }
+    });
+  });
 }
 
 /* =====================================================
@@ -455,7 +471,15 @@ function previewPhoto(input) {
 }
 
 function deleteItemEvidence(button, itemIndex) {
-  button.closest(".evidence-item").remove();
+  const evidence = button.closest(".evidence-item");
+  if (!evidence) return;
+
+  const preview = evidence.querySelector(".photo-preview");
+  if (preview && preview.src && preview.src.startsWith("blob:")) {
+    URL.revokeObjectURL(preview.src);
+  }
+
+  evidence.remove();
   renumberItemEvidence(itemIndex);
 }
 
@@ -676,8 +700,8 @@ function resetForm() {
   document.getElementById("alamat").value = "";
   document.getElementById("petugas1").value = "";
   document.getElementById("petugas2").value = "";
-  document.getElementById("evidenceContainer").innerHTML = "";
-  evidenceCount = 0;
+  // Evidence per item ikut direset saat checklist dirender ulang.
+  itemEvidenceCounts = [];
   latitude = longitude = gpsAccuracy = null;
   document.getElementById("gpsResult").textContent = "Lokasi belum diambil.";
   renderChecklist();
