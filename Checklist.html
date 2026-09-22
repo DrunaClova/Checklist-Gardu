@@ -71,6 +71,8 @@ textarea { resize: vertical; min-height: 90px; }
 .photo-icon { font-size: 32px; margin-bottom: 7px; }
 .photo-text { font-size: 12px; color: #6b7280; margin-bottom: 10px; }
 .camera-button { display: inline-block; background: #111827; color: white; padding: 10px 16px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+.gallery-button { display: inline-block; background: white; color: #111827; border: 1px solid #d1d5db; padding: 10px 16px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+.photo-buttons { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .photo-input { display: none; }
 .photo-preview { display: none; width: 100%; max-height: 320px; object-fit: cover; border-radius: 9px; margin-top: 12px; }
 
@@ -546,11 +548,17 @@ function addItemEvidence(itemIndex) {
 
     <div class="photo-area">
       <div class="photo-icon">📷</div>
-      <div class="photo-text">Ambil atau pilih foto</div>
-      <label class="camera-button">
-        Ambil Foto
-        <input type="file" class="photo-input" accept="image/*" onchange="previewPhoto(this)">
-      </label>
+      <div class="photo-text">Ambil dari kamera atau pilih dari galeri</div>
+      <div class="photo-buttons">
+        <label class="camera-button">
+          Ambil Foto
+          <input type="file" class="photo-input" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        </label>
+        <label class="gallery-button">
+          Pilih dari Galeri
+          <input type="file" class="photo-input" accept="image/*" onchange="previewPhoto(this)">
+        </label>
+      </div>
       <img class="photo-preview" alt="Preview foto evidence">
     </div>
 
@@ -570,6 +578,11 @@ function previewPhoto(input) {
 
   const evidence = input.closest(".evidence-item");
   const preview = evidence.querySelector(".photo-preview");
+
+  // Kosongkan input lain (kamera/galeri) di evidence yang sama agar tidak ada file ganda
+  evidence.querySelectorAll(".photo-input").forEach(other => {
+    if (other !== input) other.value = "";
+  });
 
   preview.src = URL.createObjectURL(file);
   preview.style.display = "block";
@@ -739,9 +752,12 @@ async function submitInspection() {
     const evidence = [];
 
     for (const el of evidenceEls) {
-      const input = el.querySelector(".photo-input");
+      const photoInputs = el.querySelectorAll(".photo-input");
       const description = el.querySelector(".evidence-description").value.trim();
-      const file = input.files[0];
+      let file = null;
+      photoInputs.forEach(inp => {
+        if (inp.files && inp.files[0]) file = inp.files[0];
+      });
       const label = el.dataset.label || "";
 
       if (file) {
