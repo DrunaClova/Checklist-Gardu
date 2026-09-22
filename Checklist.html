@@ -34,7 +34,19 @@ textarea { resize: vertical; min-height: 90px; }
 
 .datetime-box { background: #f9fafb; border-radius: 9px; padding: 12px; font-size: 13px; color: #374151; }
 
-.check-item { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+.section-block { margin-bottom: 18px; }
+.section-block:last-child { margin-bottom: 0; }
+.section-header { display: flex; justify-content: space-between; align-items: center; background: #111827; color: white; padding: 13px 16px; border-radius: 10px 10px 0 0; cursor: pointer; user-select: none; }
+.section-header.collapsed { border-radius: 10px; }
+.section-title { font-size: 14px; font-weight: 700; }
+.section-count { font-size: 11px; color: #d1d5db; margin-right: 8px; }
+.section-arrow { display: inline-block; transition: transform 0.2s; font-size: 12px; }
+.section-header.collapsed .section-arrow { transform: rotate(-90deg); }
+.section-body { border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; padding: 14px; background: #fafafa; }
+.section-body.collapsed { display: none; }
+.section-body .check-item:last-child { margin-bottom: 0; }
+
+.check-item { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; margin-bottom: 12px; background: white; }
 .check-item:last-child { margin-bottom: 0; }
 .check-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
 .check-satuan { font-size: 11px; color: #6b7280; margin-bottom: 10px; }
@@ -185,7 +197,7 @@ textarea { resize: vertical; min-height: 90px; }
 
 <script>
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxFnD0ryYMbNsRLaynrigSo5GO23b7NXlXGBe1OYJnH9xmxZ-u7p_l1k9pojQCki-G1tA/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzdfRBZoR8tgkWgprpE2DrMuMZN-sH3Xn3ieNum2wTsmBUtYHkj1PPukPqzu0pNDdeXDw/exec";
 const API_TOKEN = "UgP0irtQFWGQuAhmkXpYOqUK1l2yhU9rmd9P8VbG1LQy0G8d8GsEPmt4I3X5peWR";
 
 let templateItems = [];
@@ -399,17 +411,8 @@ function renderGarduDropdown(garduList) {
   datalist.innerHTML = garduList.map(g => `<option value="${g}">`).join("");
 }
 
-function renderChecklist() {
-  const container = document.getElementById("checklistContainer");
-
-  if (templateItems.length === 0) {
-    container.innerHTML = `<div class="loading-text">Belum ada item di sheet Template.</div>`;
-    return;
-  }
-
-  itemEvidenceCounts = templateItems.map(() => 0);
-
-  container.innerHTML = templateItems.map((item, i) => `
+function renderCheckItemHtml(item, i) {
+  return `
     <div class="check-item" data-index="${i}">
       <div class="check-name">${i + 1}. ${item.namaItem}</div>
       <div class="check-satuan">Satuan Unit: <strong>${item.satuan || "-"}</strong></div>
@@ -461,6 +464,44 @@ function renderChecklist() {
         </button>
       </div>
     </div>
+  `;
+}
+
+function renderChecklist() {
+  const container = document.getElementById("checklistContainer");
+
+  if (templateItems.length === 0) {
+    container.innerHTML = `<div class="loading-text">Belum ada item di sheet Template.</div>`;
+    return;
+  }
+
+  itemEvidenceCounts = templateItems.map(() => 0);
+
+  // Kelompokkan item berdasarkan kolom Kategori (urutan mengikuti kemunculan pertama tiap kategori di sheet)
+  const sections = [];
+  const sectionMap = {};
+  templateItems.forEach((item, i) => {
+    const kategori = item.kategori || "Tanpa Kategori";
+    if (!sectionMap[kategori]) {
+      sectionMap[kategori] = { kategori, indices: [] };
+      sections.push(sectionMap[kategori]);
+    }
+    sectionMap[kategori].indices.push(i);
+  });
+
+  container.innerHTML = sections.map((section, sIdx) => `
+    <div class="section-block">
+      <div class="section-header" id="sectionHeader${sIdx}" onclick="toggleSection(${sIdx})">
+        <div class="section-title">${sIdx + 1}. ${escapeHtml(section.kategori)}</div>
+        <div style="display:flex; align-items:center;">
+          <span class="section-count">${section.indices.length} item</span>
+          <span class="section-arrow" id="sectionArrow${sIdx}">▾</span>
+        </div>
+      </div>
+      <div class="section-body" id="sectionBody${sIdx}">
+        ${section.indices.map(i => renderCheckItemHtml(templateItems[i], i)).join("")}
+      </div>
+    </div>
   `).join("");
 
   container.querySelectorAll(".kondisi-radio").forEach(radio => {
@@ -474,6 +515,14 @@ function renderChecklist() {
       evidenceBox.style.display = this.value === "RUSAK" ? "block" : "none";
     });
   });
+}
+
+function toggleSection(sIdx) {
+  const header = document.getElementById("sectionHeader" + sIdx);
+  const body = document.getElementById("sectionBody" + sIdx);
+  if (!header || !body) return;
+  header.classList.toggle("collapsed");
+  body.classList.toggle("collapsed");
 }
 
 let itemEvidenceCounts = [];
@@ -613,8 +662,9 @@ function collectFormData() {
   const items = [];
   for (let i = 0; i < checkItems.length; i++) {
     const el = checkItems[i];
-    const templateItem = templateItems[i];
-    
+    const templateIndex = parseInt(el.dataset.index, 10);
+    const templateItem = templateItems[templateIndex];
+
     // 1. Ukuran / Rating
     const ukuranEl = el.querySelector(".ukuran-input");
     let ukuranFinal = "-";
@@ -632,7 +682,7 @@ function collectFormData() {
     }
 
     const jumlah = el.querySelector(".jumlah-input").value;
-    const kondisi = el.querySelector(`input[name="kondisi${i}"]:checked`);
+    const kondisi = el.querySelector(`input[name="kondisi${templateIndex}"]:checked`);
 
     if (!kondisi) {
       alert(`Kondisi untuk item "${templateItem.namaItem}" belum dipilih.`);
