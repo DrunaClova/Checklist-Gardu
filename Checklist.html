@@ -360,7 +360,7 @@ async function loadTemplate() {
   const GARDU_CACHE_KEY = "gardu_list_cache";
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL + "?action=template");
+    const res = await fetch(APPS_SCRIPT_URL + "?action=template&token=" + encodeURIComponent(API_TOKEN));
     const data = await res.json();
 
     if (data.error) throw new Error(data.error);
