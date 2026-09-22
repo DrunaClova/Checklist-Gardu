@@ -199,7 +199,7 @@ textarea { resize: vertical; min-height: 90px; }
 
 <script>
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwALzHOY6LBcvifp7qZz4JxUrszwymmLWeKy4igOvG8V96Lu1rGofPLUvpLIIBvfQKKWw/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxIuKUib93U75hkMebc-24eJ7Yg33V6sUrYCySYAgEtSAKPFfS-T4d50NKht2r81ZIUOA/exec";
 const API_TOKEN = "UgP0irtQFWGQuAhmkXpYOqUK1l2yhU9rmd9P8VbG1LQy0G8d8GsEPmt4I3X5peWR";
 
 let templateItems = [];
@@ -263,21 +263,31 @@ async function sendToAppsScript(payload) {
   formBody.append("postData", JSON.stringify(payload));
   formBody.append("token", API_TOKEN);
 
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: "POST",
-    body: formBody
-  });
+  let res;
+  try {
+    res = await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      body: formBody
+    });
+  } catch (networkErr) {
+    // fetch() gagal total (offline, DNS, dsb) -> ini benar-benar masalah koneksi
+    throw networkErr;
+  }
 
   const text = await res.text();
   let result;
   try {
     result = JSON.parse(text);
   } catch (e) {
-    throw new Error("Respon bukan format JSON: " + text.substring(0, 100));
+    const err = new Error("Respon bukan format JSON: " + text.substring(0, 100));
+    err.isServerError = true;
+    throw err;
   }
 
   if (!result.success) {
-    throw new Error(result.error || "Gagal dari server.");
+    const err = new Error(result.error || "Gagal dari server.");
+    err.isServerError = true; // request sampai ke server, tapi ditolak/gagal proses (bukan masalah koneksi)
+    throw err;
   }
 
   return result;
@@ -789,7 +799,22 @@ async function submitInspection() {
     let result;
     try {
       result = await sendToAppsScript(payload);
-    } catch (networkErr) {
+    } catch (err) {
+      if (err.isServerError) {
+        // Ini error nyata dari server (permission, ID salah, sheet tidak ditemukan, dsb) —
+        // JANGAN diam-diam diantrekan, karena kirim ulang otomatis hanya akan upload foto duplikat
+        // tanpa pernah berhasil sampai penyebabnya diperbaiki.
+        alert(
+          "Gagal menyimpan ke spreadsheet: " + err.message +
+          "\n\nFoto evidence kemungkinan SUDAH terupload ke Drive, tapi data checklist BELUM tersimpan. " +
+          "Jangan kirim ulang dulu sebelum masalah ini diperbaiki (bisa duplikat foto). Hubungi admin/cek pengaturan sheet."
+        );
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Kirim Inspeksi";
+        return;
+      }
+
+      // Bukan error server -> anggap benar-benar masalah koneksi, aman untuk diantrekan
       await queueSubmission(payload);
       await renderPendingQueue();
       alert("Gagal terhubung ke server. Data disimpan di HP dan akan otomatis dicoba kirim lagi nanti.");
