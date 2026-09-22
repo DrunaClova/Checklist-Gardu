@@ -499,7 +499,7 @@ function renderCheckItemHtml(item, i) {
         ${butuhJumlah ? `
           <div class="form-group" style="flex: 0.7; min-width: 90px;">
             <label class="form-label">Jumlah:</label>
-            <input type="number" class="jumlah-input" min="0" step="1" value="1" placeholder="1">
+            <input type="number" class="jumlah-input" min="0" step="1" value="0" placeholder="0">
           </div>
         ` : ''}
       </div>
@@ -808,7 +808,7 @@ function collectFormData() {
 
     // Jumlah
     const jumlahEl = el.querySelector(".jumlah-input");
-    const jumlahVal = jumlahEl ? (jumlahEl.value || 0) : "-";
+    const jumlahVal = jumlahEl ? (jumlahEl.value !== "" ? jumlahEl.value : 0) : "-";
 
     // Kondisi
     const kondisi = el.querySelector(`input[name="kondisi${templateIndex}"]:checked`);
