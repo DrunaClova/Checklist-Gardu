@@ -185,7 +185,7 @@ textarea { resize: vertical; min-height: 90px; }
 
 <script>
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbztcioHV9DVb50SZktDWUhSkjxWsoYaCfmCjGFJR8JNbZwpSDFPMVHk3cvvLW-Zhvxqvw/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxFnD0ryYMbNsRLaynrigSo5GO23b7NXlXGBe1OYJnH9xmxZ-u7p_l1k9pojQCki-G1tA/exec";
 const API_TOKEN = "UgP0irtQFWGQuAhmkXpYOqUK1l2yhU9rmd9P8VbG1LQy0G8d8GsEPmt4I3X5peWR";
 
 let templateItems = [];
@@ -414,19 +414,26 @@ function renderChecklist() {
       <div class="check-name">${i + 1}. ${item.namaItem}</div>
       <div class="check-satuan">Satuan Unit: <strong>${item.satuan || "-"}</strong></div>
 
-      <div class="check-row">
+      <div class="check-row" style="flex-wrap: wrap;">
         ${item.perluUkuran ? `
-          <div class="form-group" style="flex: 1.5;">
-            <label class="form-label">Ukuran / Rating (${item.satuanUkuran || ''})</label>
-            <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="form-group" style="flex: 1; min-width: 140px;">
+            <label class="form-label">Ukuran / Rating</label>
+            <div style="display: flex; align-items: center; gap: 6px;">
               <input type="number" class="ukuran-input" step="any" placeholder="Nilai">
               <span style="font-size: 13px; font-weight: 600; color: #374151; white-space: nowrap;">${item.satuanUkuran || ''}</span>
             </div>
           </div>
         ` : ''}
 
-        <div class="form-group" style="flex: 1;">
-          <label class="form-label">Jumlah</label>
+        ${item.perluJenis ? `
+          <div class="form-group" style="flex: 1; min-width: 140px;">
+            <label class="form-label">Jenis</label>
+            <input type="text" class="jenis-input" placeholder="Misal: Polimer / Keramik">
+          </div>
+        ` : ''}
+
+        <div class="form-group" style="flex: 0.8; min-width: 100px;">
+          <label class="form-label">Jumlah (${item.satuan || 'Unit'})</label>
           <input type="number" class="jumlah-input" min="0" step="1" placeholder="0">
         </div>
       </div>
@@ -606,22 +613,37 @@ function collectFormData() {
   const items = [];
   for (let i = 0; i < checkItems.length; i++) {
     const el = checkItems[i];
+    const templateItem = templateItems[i];
     
+    // 1. Ukuran / Rating
     const ukuranEl = el.querySelector(".ukuran-input");
-    const ukuran = (ukuranEl && ukuranEl.value.trim() !== "") ? ukuranEl.value.trim() : "-";
-    
+    let ukuranFinal = "-";
+    if (templateItem.perluUkuran && ukuranEl && ukuranEl.value.trim() !== "") {
+      const nilaiInput = ukuranEl.value.trim();
+      const satuanUkr = templateItem.satuanUkuran || "";
+      ukuranFinal = satuanUkr ? `${nilaiInput} ${satuanUkr}` : nilaiInput;
+    }
+
+    // 2. Jenis (String Input)
+    const jenisEl = el.querySelector(".jenis-input");
+    let jenisFinal = "-";
+    if (templateItem.perluJenis && jenisEl && jenisEl.value.trim() !== "") {
+      jenisFinal = jenisEl.value.trim();
+    }
+
     const jumlah = el.querySelector(".jumlah-input").value;
     const kondisi = el.querySelector(`input[name="kondisi${i}"]:checked`);
 
     if (!kondisi) {
-      alert(`Kondisi untuk item "${templateItems[i].namaItem}" belum dipilih.`);
+      alert(`Kondisi untuk item "${templateItem.namaItem}" belum dipilih.`);
       return null;
     }
 
     items.push({
-      namaItem: templateItems[i].namaItem,
-      satuan: templateItems[i].satuan, 
-      ukuran: ukuran,                 
+      namaItem: templateItem.namaItem,
+      satuan: templateItem.satuan,
+      ukuran: ukuranFinal,
+      jenis: jenisFinal, // Disimpan ke payload
       jumlah: jumlah || 0,
       kondisi: kondisi.value
     });
