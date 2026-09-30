@@ -137,9 +137,9 @@ textarea { resize: vertical; min-height: 90px; }
       <datalist id="garduDatalist"></datalist>
     </div>
 
-    <!-- KOLOM BARU NAMA ULP (AUTO + OVERRIDE) -->
+    <!-- KOLOM BARU ULP (AUTO + OVERRIDE) -->
     <div class="form-group">
-      <label class="form-label">Nama ULP</label>
+      <label class="form-label">ULP</label>
       <select id="namaUlp">
         <option value="">-- Pilih ULP --</option>
       </select>
@@ -458,7 +458,7 @@ function renderUlpOptions(mapping) {
     if (m.ulp && !uniqueUlps.includes(m.ulp)) uniqueUlps.push(m.ulp);
   });
 
-  ulpSelect.innerHTML = `<option value="">-- Pilih / Otomatis ULP --</option>` +
+  ulpSelect.innerHTML = `<option value="">-- Pilih --</option>` +
     uniqueUlps.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join("");
 }
 
@@ -831,7 +831,7 @@ function collectFormData() {
   const petugas2 = document.getElementById("petugas2").value.trim();
 
   if (!nomorGardu) { alert("Nomor gardu wajib diisi."); return null; }
-  if (!namaUlp) { alert("Nama ULP wajib diisi."); return null; }
+  if (!namaUlp) { alert("ULP wajib diisi."); return null; }
   if (!alamat) { alert("Alamat wajib diisi."); return null; }
   if (!petugas1) { alert("Nama petugas 1 wajib diisi."); return null; }
   if (!petugas2) { alert("Nama petugas 2 wajib diisi."); return null; }
@@ -921,7 +921,7 @@ function openConfirmModal() {
 
   document.getElementById("confirmSummary").innerHTML = `
     <strong>Nomor Gardu:</strong> ${escapeHtml(data.nomorGardu)}<br>
-    <strong>Nama ULP:</strong> ${escapeHtml(data.namaUlp)}<br>
+    <strong>ULP:</strong> ${escapeHtml(data.namaUlp)}<br>
     <strong>Alamat:</strong> ${escapeHtml(data.alamat)}<br>
     <strong>Petugas:</strong> ${escapeHtml(data.petugas1)} & ${escapeHtml(data.petugas2)}<br>
     <strong>Jumlah item checklist:</strong> ${data.items.length}<br>
@@ -1011,7 +1011,7 @@ async function submitInspection() {
     }
 
     document.getElementById("resultGardu").textContent = "Nomor Gardu: " + data.nomorGardu;
-    document.getElementById("resultUlp").textContent = "Nama ULP: " + data.namaUlp;
+    document.getElementById("resultUlp").textContent = "ULP: " + data.namaUlp;
     document.getElementById("resultPetugas").textContent = "Petugas: " + data.petugas1 + " & " + data.petugas2;
     document.getElementById("resultTime").textContent = "Waktu: " + now.toLocaleString("id-ID");
     document.getElementById("resultLinks").innerHTML =
